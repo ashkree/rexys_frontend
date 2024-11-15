@@ -1,4 +1,3 @@
-// src/views/Preferences.vue
 <template>
 	<div class="max-w-2xl mx-auto py-8">
 		<div class="bg-white p-6 rounded-lg shadow-lg">
@@ -40,7 +39,7 @@
 						<div class="flex-1">
 							<label class="text-xs text-gray-500">Min</label>
 							<input
-								v-model="preferences.rating.min"
+								v-model.number="preferences.rating.min"
 								type="number"
 								min="0"
 								max="10"
@@ -51,7 +50,7 @@
 						<div class="flex-1">
 							<label class="text-xs text-gray-500">Max</label>
 							<input
-								v-model="preferences.rating.max"
+								v-model.number="preferences.rating.max"
 								type="number"
 								min="0"
 								max="10"
@@ -99,16 +98,16 @@
 </template>
 
 <script>
-import { ref, computed } from "vue";
-import { useRouter } from "vue-router";
-import { api } from "../api";
+import { ref, computed, watch } from "vue";
+import { useRouter, useRoute } from "vue-router";
 
 export default {
 	name: "Preferences",
 
 	setup() {
 		const router = useRouter();
-		const type = computed(() => router.currentRoute.value.params.type);
+		const route = useRoute();
+		const type = computed(() => route.params.type); // Get the type from the route
 		const loading = ref(false);
 		const error = ref("");
 		const tagInput = ref("");
@@ -122,54 +121,35 @@ export default {
 			tags: [],
 		});
 
-		// Different genres based on type
-		const genres = computed(() => {
-			if (type.value === "movie") {
-				return [
-					"Action",
-					"Drama",
-					"Comedy",
-					"Sci-Fi",
-					"Horror",
-					"Romance",
-					"Adventure",
-					"Thriller",
-				];
-			} else {
-				return [
-					"RPG",
-					"Action",
-					"Strategy",
-					"Sports",
-					"Adventure",
-					"Simulation",
-					"FPS",
-					"Puzzle",
-				];
-			}
+		// Watch for tag input changes to update preferences
+		watch(tagInput, (newTags) => {
+			preferences.value.tags = newTags.split(",").map((tag) => tag.trim());
 		});
 
-		const handleSubmit = async () => {
+		// Genres based on type
+		const genres = computed(() => {
+			return type.value === "movie"
+				? ["Action", "Drama", "Comedy", "Sci-Fi", "Horror", "Romance", "Adventure", "Thriller"]
+				: ["RPG", "Action", "Strategy", "Sports", "Adventure", "Simulation", "FPS", "Puzzle"];
+		});
+
+		const handleSubmit = () => {
 			try {
 				loading.value = true;
 				error.value = "";
 
-				const user = JSON.parse(localStorage.getItem("user"));
-				const response = await api.getRecommendations(
-					type.value,
-					user.id,
-					preferences.value
-				);
-				console.log(user.id);
-
-				localStorage.setItem(
-					"recommendations",
-					JSON.stringify(response.recommendations)
-				);
-				router.push(`/recommendations/${type.value}`);
+				// Redirect to the Recommendations page with query parameters
+				router.push({
+					path: `/recommendations/${type.value}`,
+					query: {
+						genre: preferences.value.genre,
+						min_rating: preferences.value.rating.min,
+						max_rating: preferences.value.rating.max,
+						tags: preferences.value.tags.join(","),
+					},
+				});
 			} catch (err) {
-				error.value =
-					"Failed to get recommendations. Please try again.";
+				error.value = "Failed to navigate to recommendations. Please try again.";
 			} finally {
 				loading.value = false;
 			}

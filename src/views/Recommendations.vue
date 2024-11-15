@@ -1,4 +1,3 @@
-// src/views/Recommendations.vue
 <template>
 	<div class="max-w-6xl mx-auto py-8">
 		<div class="bg-white p-6 rounded-lg shadow-lg">
@@ -98,7 +97,7 @@
 
 <script>
 import { ref, onMounted, computed } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { api } from "../api";
 
 export default {
@@ -106,43 +105,41 @@ export default {
 
 	setup() {
 		const router = useRouter();
+		const route = useRoute();
 		const recommendations = ref([]);
 		const loading = ref(true);
 		const error = ref("");
 
-		const type = computed(() => router.currentRoute.value.params.type);
+		const type = computed(() => route.params.type);
 
 		onMounted(async () => {
 			try {
-				// First try to get recommendations from localStorage
-				const storedRecs = localStorage.getItem("recommendations");
-				if (storedRecs) {
-					recommendations.value = JSON.parse(storedRecs);
-					loading.value = false;
-					return;
-				}
-
-				// If not in localStorage, fetch from API
 				const user = JSON.parse(localStorage.getItem("user"));
-				const preferences = JSON.parse(
-					localStorage.getItem("preferences")
-				);
-
-				const response = await api.getRecommendations(
-					type.value,
-					user.id,
-					preferences
-				);
-
-				if (response.error) {
-					error.value = response.error;
+				if (!user || !user.id) {
+					error.value = "User not found. Please log in.";
 					return;
 				}
+
+				// Fetch preferences from query parameters
+				const preferences = {
+					genre: route.query.genre || "",
+					rating: {
+						min: parseFloat(route.query.min_rating) || 0,
+						max: parseFloat(route.query.max_rating) || 10,
+					},
+					tags: route.query.tags ? route.query.tags.split(",") : [],
+				};
+
+				// Fetch recommendations from API
+				const response =
+					type.value === "movie"
+						? await api.getMovieRecommendations(user.id, preferences)
+						: await api.getGameRecommendations(user.id, preferences);
 
 				recommendations.value = response.recommendations;
 			} catch (err) {
-				error.value =
-					"Failed to load recommendations. Please try again.";
+				error.value = "Failed to load recommendations. Please try again.";
+				console.error(err);
 			} finally {
 				loading.value = false;
 			}

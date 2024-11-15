@@ -86,18 +86,32 @@ export const api = {
 		}
 	},
 
-	async getRecommendations(type, userId, preferences) {
+	async getMovieRecommendations(userId, preferences) {
 		try {
-			const response = await axiosInstance.post(`/recommend/${type}s`, {
-				params: {
-					user_id: userId,
-					preferences: JSON.stringify(preferences),
-				},
+			const response = await axiosInstance.post(`/recommend/movies`, {
+				user_id: userId,
+				preferences: preferences
 			});
 			return response.data;
 		} catch (error) {
-			console.error(`Fetching ${type} recommendations failed:`, error);
+			console.error("Error fetching movie recommendations:", error);
 			throw error;
 		}
 	},
+
+	async getGameRecommendations(userId, preferences) {
+		try {
+			const response = await axiosInstance.post(`/recommend/games`, {
+				user_id: userId,
+				preferences: preferences
+			});
+			return response.data;
+		} catch (error) {
+			console.error("Error fetching game recommendations:", error);
+			throw error;
+		}
+	},
+
 };
+
+
