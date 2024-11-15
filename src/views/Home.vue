@@ -94,7 +94,8 @@ export default {
 				router.push("/select-type");
 			} catch (err) {
 				console.error("Error:", err);
-				error.value = "An error occurred. Please try again.";
+				error.value =
+					err.message || "An error occurred. Please try again.";
 			}
 		};
 

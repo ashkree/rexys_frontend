@@ -1,56 +1,103 @@
-import { ref, onMounted } from "vue";
-import { useRouter } from "vue-router";
-import RatingCard from "../components/RatingCard.vue";
+import axios from "axios";
 
-export default {
-	components: { RatingCard },
-	props: ["type"],
+// Create an axios instance with dynamic base URL
+const axiosInstance = axios.create({
+	baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5000", // Fallback to localhost for dev
+	headers: {
+		"Content-Type": "application/json",
+		Accept: "application/json",
+	},
+});
 
-	setup(props) {
-		const router = useRouter();
-		const items = ref([]);
-		const ratings = ref({});
-		const apiBaseUrl = import.meta.env.VITE_API_BASE_URL; // Use environment variable
+// Add request interceptor for logging
+axiosInstance.interceptors.request.use(
+	(request) => {
+		console.log("Starting Request", request);
+		return request;
+	},
+	(error) => {
+		console.error("Request Error:", error);
+		return Promise.reject(error);
+	}
+);
 
-		onMounted(async () => {
-			try {
-				const response = await fetch(
-					`${apiBaseUrl}/ratings/${props.type}s/initial`
-				);
-				if (!response.ok)
-					throw new Error(`Failed to fetch: ${response.status}`);
-				items.value = await response.json();
-			} catch (err) {
-				console.error("Error:", err);
-			}
-		});
+// Add response interceptor for logging
+axiosInstance.interceptors.response.use(
+	(response) => {
+		console.log("Response:", response);
+		return response;
+	},
+	(error) => {
+		console.error("Response Error:", error.response || error.message);
+		return Promise.reject(error.response?.data || error.message);
+	}
+);
 
-		const updateRating = ({ id, rating }) => {
-			ratings.value[id] = rating;
-		};
+export const api = {
+	async register(username) {
+		try {
+			const response = await axiosInstance.post("/auth/register", {
+				username,
+			});
+			return response.data;
+		} catch (error) {
+			console.error("Registration failed:", error);
+			throw error;
+		}
+	},
 
-		const submitRatings = async () => {
-			try {
-				const user = JSON.parse(localStorage.getItem("user"));
-				await fetch(`${apiBaseUrl}/ratings/rate/${props.type}s`, {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						user_id: user.id,
-						ratings: Object.entries(ratings.value).map(
-							([id, rating]) => ({
-								[`${props.type}_id`]: id,
-								rating,
-							})
-						),
-					}),
-				});
-				router.push(`/preferences/${props.type}`);
-			} catch (err) {
-				console.error("Error submitting ratings:", err);
-			}
-		};
+	async login(username) {
+		try {
+			const response = await axiosInstance.post("/auth/login", {
+				username,
+			});
+			return response.data;
+		} catch (error) {
+			console.error("Login failed:", error);
+			throw error;
+		}
+	},
 
-		return { items, updateRating, submitRatings, ratings };
+	async getInitialItems(type) {
+		try {
+			const response = await axiosInstance.get(
+				`/ratings/${type}s/initial`
+			);
+			return response.data;
+		} catch (error) {
+			console.error(`Fetching initial ${type}s failed:`, error);
+			throw error;
+		}
+	},
+
+	async submitRatings(type, userId, ratings) {
+		try {
+			const response = await axiosInstance.post(
+				`/ratings/rate/${type}s`,
+				{
+					user_id: userId,
+					ratings,
+				}
+			);
+			return response.data;
+		} catch (error) {
+			console.error(`Submitting ${type} ratings failed:`, error);
+			throw error;
+		}
+	},
+
+	async getRecommendations(type, userId, preferences) {
+		try {
+			const response = await axiosInstance.get(`/recommend/${type}s`, {
+				params: {
+					user_id: userId,
+					preferences: JSON.stringify(preferences),
+				},
+			});
+			return response.data;
+		} catch (error) {
+			console.error(`Fetching ${type} recommendations failed:`, error);
+			throw error;
+		}
 	},
 };
