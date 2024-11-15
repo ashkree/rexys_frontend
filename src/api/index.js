@@ -1,124 +1,56 @@
-import axios from "axios";
+import { ref, onMounted } from "vue";
+import { useRouter } from "vue-router";
+import RatingCard from "../components/RatingCard.vue";
 
-const axiosInstance = axios.create({
-	baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5000", // Fallback for local dev
-	headers: {
-		"Content-Type": "application/json",
-	},
-});
+export default {
+	components: { RatingCard },
+	props: ["type"],
 
-export default axiosInstance;
+	setup(props) {
+		const router = useRouter();
+		const items = ref([]);
+		const ratings = ref({});
+		const apiBaseUrl = import.meta.env.VITE_API_BASE_URL; // Use environment variable
 
-// Add request interceptor
-axiosInstance.interceptors.request.use((request) => {
-	console.log("Starting Request", {
-		url: request.url,
-		method: request.method,
-		data: request.data,
-	});
-	return request;
-});
-
-// Add response interceptor
-axiosInstance.interceptors.response.use(
-	(response) => {
-		console.log("Response:", response);
-		return response;
-	},
-	(error) => {
-		console.log("Response Error:", {
-			status: error.response?.status,
-			data: error.response?.data,
-			headers: error.response?.headers,
+		onMounted(async () => {
+			try {
+				const response = await fetch(
+					`${apiBaseUrl}/ratings/${props.type}s/initial`
+				);
+				if (!response.ok)
+					throw new Error(`Failed to fetch: ${response.status}`);
+				items.value = await response.json();
+			} catch (err) {
+				console.error("Error:", err);
+			}
 		});
-		return Promise.reject(error);
-	}
-);
 
-export const api = {
-	async register(username) {
-		try {
-			console.log("Registering user:", username);
-			const response = await axiosInstance.post("/auth/register", {
-				username: username,
-			});
-			console.log("Registration successful:", response.data);
-			return response.data;
-		} catch (error) {
-			console.error("Registration failed:", {
-				status: error.response?.status,
-				data: error.response?.data,
-				message: error.message,
-			});
-			throw error;
-		}
-	},
+		const updateRating = ({ id, rating }) => {
+			ratings.value[id] = rating;
+		};
 
-	async login(username) {
-		try {
-			console.log("Logging in user:", username);
-			const response = await axiosInstance.post("/auth/login", {
-				username: username,
-			});
-			console.log("Login successful:", response.data);
-			return response.data;
-		} catch (error) {
-			console.error("Login failed:", {
-				status: error.response?.status,
-				data: error.response?.data,
-				message: error.message,
-			});
-			throw error;
-		}
-	},
+		const submitRatings = async () => {
+			try {
+				const user = JSON.parse(localStorage.getItem("user"));
+				await fetch(`${apiBaseUrl}/ratings/rate/${props.type}s`, {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						user_id: user.id,
+						ratings: Object.entries(ratings.value).map(
+							([id, rating]) => ({
+								[`${props.type}_id`]: id,
+								rating,
+							})
+						),
+					}),
+				});
+				router.push(`/preferences/${props.type}`);
+			} catch (err) {
+				console.error("Error submitting ratings:", err);
+			}
+		};
 
-	async submitRatings(type, userId, ratings) {
-		try {
-			console.log("Submitting ratings:", { type, userId, ratings });
-			const response = await axiosInstance.post(
-				`/ratings/rate/${type}s`,
-				{
-					user_id: userId,
-					ratings: ratings,
-				}
-			);
-			console.log("Ratings submitted successfully:", response.data);
-			return response.data;
-		} catch (error) {
-			console.error("Ratings submission failed:", {
-				status: error.response?.status,
-				data: error.response?.data,
-				message: error.message,
-			});
-			throw error;
-		}
-	},
-
-	async getRecommendations(type, userId, preferences) {
-		try {
-			console.log("Getting recommendations:", {
-				type,
-				userId,
-				preferences,
-			});
-
-			const response = await axiosInstance.post(`/recommend/${type}s`, {
-				user_id: userId,
-				preferences: preferences,
-			});
-
-			console.log(
-				"Recommendations retrieved successfully:",
-				response.data
-			);
-			return response.data;
-		} catch (error) {
-			console.error("Getting recommendations failed:", {
-				status: error.response?.status,
-				data: error.response?.data,
-				message: error.message,
-			});
-			throw error;
-		}
+		return { items, updateRating, submitRatings, ratings };
 	},
 };
