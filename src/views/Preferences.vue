@@ -160,6 +160,7 @@ export default {
 					user.id,
 					preferences.value
 				);
+				console.log(user.id);
 
 				localStorage.setItem(
 					"recommendations",
