@@ -24,6 +24,7 @@
 <script>
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
+import { api } from "../api"; // Import the updated API module
 import RatingCard from "../components/RatingCard.vue";
 
 export default {
@@ -37,14 +38,10 @@ export default {
 
 		onMounted(async () => {
 			try {
-				const response = await fetch(
-					`http://localhost:5000/ratings/${props.type}s/initial`
-				);
-				if (!response.ok)
-					throw new Error(`Failed to fetch: ${response.status}`);
-				items.value = await response.json();
+				const data = await api.getInitialItems(props.type); // Use API module
+				items.value = data;
 			} catch (err) {
-				console.error("Error:", err);
+				console.error("Error fetching initial items:", err);
 			}
 		});
 
@@ -55,21 +52,13 @@ export default {
 		const submitRatings = async () => {
 			try {
 				const user = JSON.parse(localStorage.getItem("user"));
-				await fetch(
-					`http://localhost:5000/ratings/rate/${props.type}s`,
-					{
-						method: "POST",
-						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify({
-							user_id: user.id,
-							ratings: Object.entries(ratings.value).map(
-								([id, rating]) => ({
-									[`${props.type}_id`]: id,
-									rating,
-								})
-							),
-						}),
-					}
+				await api.submitRatings(
+					props.type,
+					user.id,
+					Object.entries(ratings.value).map(([id, rating]) => ({
+						[`${props.type}_id`]: id,
+						rating,
+					}))
 				);
 				router.push(`/preferences/${props.type}`);
 			} catch (err) {
