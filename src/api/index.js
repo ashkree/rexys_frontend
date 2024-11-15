@@ -88,7 +88,7 @@ export const api = {
 
 	async getRecommendations(type, userId, preferences) {
 		try {
-			const response = await axiosInstance.get(`/recommend/${type}s`, {
+			const response = await axiosInstance.post(`/recommend/${type}s`, {
 				params: {
 					user_id: userId,
 					preferences: JSON.stringify(preferences),
