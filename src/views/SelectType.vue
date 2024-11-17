@@ -10,12 +10,6 @@
 			>
 				Movies
 			</button>
-			<button
-				@click="selectType('game')"
-				class="btn btn-primary w-full"
-			>
-				Games
-			</button>
 		</div>
 	</div>
 </template>
